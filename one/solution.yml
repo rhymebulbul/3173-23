@@ -18,6 +18,13 @@ disass main
 # slightly over buffer size 20
 run $(perl -e 'print "\x41"x40')
 
+# the result of 0xbffff188 + nnn should
+# not contain a zero in any of its byte, or the content of badfile will have a zero in the middle,
+# causing the strcpy() function to end the copying earlier, without copying anything after the
+# zero. For example, if we use 0xbffff188 + 0x78, we will get 0xbffff200, and the last
+# byte of the result is zero.
+0xbffff188 + 0x80
+
 p &buffer
 
 # stack memory, starting from first byte of buffer
